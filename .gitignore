@@ -1,0 +1,33 @@
+# --- ENVIRONMENT FILES ---
+.env
+*.env
+.env.*
+credentials/
+secrets.json
+
+# --- PYTHON VIRTUAL ENVIRONMENT ---
+venv/
+
+# --- PYTHON CACHE FILES ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- SUPABASE LOCAL CONFIG ---
+supabase/
+
+# --- IDE / SYSTEM FILES ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- LOGS ---
+*.log
+logs/
+
+# --- AUDIO AND TEMP FILES ---
+*.mp3
+temp/
+parsed_resume.json
