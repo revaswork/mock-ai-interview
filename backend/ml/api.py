@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
@@ -25,6 +26,19 @@ app = FastAPI(
     title="AI Mock Interview Backend API",
     version="2.1.0",
     description="Handles resume upload, adaptive interviews, evaluation, reports, and audio playback.",
+)
+
+# ✅ Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js development server
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",  # Alternative port
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # -----------------------------
@@ -267,6 +281,68 @@ async def stop_interview(payload: Dict[str, str]):
         return {"status": "error", "message": str(e)}
 
 
+# -----------------------------
+# 📊 4️⃣ GET REPORT BY SESSION ID
+# -----------------------------
+@app.get("/api/report/{session_id}")
+async def get_report(session_id: str):
+    """Fetch evaluation, report, and roadmap for a specific session."""
+    try:
+        from .supabase_config import supabase
+        
+        # Fetch evaluation
+        eval_response = supabase.table("evaluations").select("*").eq("session_id", session_id).execute()
+        
+        # Fetch report
+        report_response = supabase.table("reports").select("*").eq("session_id", session_id).execute()
+        
+        # Fetch roadmap
+        roadmap_response = supabase.table("roadmaps").select("*").eq("session_id", session_id).execute()
+        
+        # Fetch interview data
+        interview_response = supabase.table("interviews").select("*").eq("session_id", session_id).execute()
+        
+        if not eval_response.data:
+            return {"status": "error", "message": f"No report found for session: {session_id}"}
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "evaluation": eval_response.data[0] if eval_response.data else None,
+            "report": report_response.data[0] if report_response.data else None,
+            "roadmap": roadmap_response.data[0] if roadmap_response.data else None,
+            "interview": interview_response.data[0] if interview_response.data else None,
+        }
+    
+    except Exception as e:
+        print(f"⚠️ Error fetching report: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+# -----------------------------
+# 📋 5️⃣ GET ALL REPORTS FOR A USER
+# -----------------------------
+@app.get("/api/reports/{user_name}")
+async def get_user_reports(user_name: str):
+    """Fetch all interview reports for a specific user."""
+    try:
+        from .supabase_config import supabase
+        
+        response = supabase.table("interviews").select("*").eq("user_name", user_name).order("created_at", desc=True).execute()
+        
+        if not response.data:
+            return {"status": "success", "reports": [], "message": "No reports found for this user."}
+        
+        return {
+            "status": "success",
+            "reports": response.data
+        }
+    
+    except Exception as e:
+        print(f"⚠️ Error fetching user reports: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 # ✅ Include resume upload router
 app.include_router(resume_router)
 
@@ -284,5 +360,7 @@ async def root():
             "POST /api/interview/answer": "Real-time Q&A with audio",
             "POST /api/interview/stop": "Finalize interview and get report",
             "POST /api/resume/upload": "Upload and parse resume",
+            "GET /api/report/{session_id}": "Get report by session ID",
+            "GET /api/reports/{user_name}": "Get all reports for a user",
         },
     }
