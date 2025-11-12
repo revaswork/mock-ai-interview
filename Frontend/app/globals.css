@@ -1,0 +1,250 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Updated color tokens to match 90s retro pixel-art gaming aesthetic */
+  --background: #f0f0f0; /* Light grey for the main background */
+  --foreground: #000000; /* Black for primary text */
+  --card: #ffffff; /* White for card backgrounds */
+  --card-foreground: #000000; /* Black for card text */
+  --popover: #00bcd4; /* Teal for popover backgrounds */
+  --popover-foreground: #ffffff; /* White for popover text */
+  --primary: #ffeb3b; /* Bright yellow for primary buttons */
+  --primary-foreground: #000000; /* Black for primary button text */
+  --secondary: #e91e63; /* Magenta for secondary elements */
+  --secondary-foreground: #ffffff; /* White for secondary text */
+  --muted: #f0f0f0; /* Light grey for muted text */
+  --muted-foreground: #000000; /* Black for muted text */
+  --accent: #4caf50; /* Neon green for accents */
+  --accent-foreground: #ffffff; /* White for accent text */
+  --destructive: #ff5722; /* Red for destructive actions */
+  --destructive-foreground: #ffffff; /* White for destructive text */
+  --border: #000000; /* Black for borders */
+  --input: #ffffff; /* White for input fields */
+  --ring: #00bcd4; /* Teal for focus rings */
+  --chart-1: #00bcd4; /* Teal for chart colors */
+  --chart-2: #ffeb3b; /* Bright yellow for chart colors */
+  --chart-3: #e91e63; /* Magenta for chart colors */
+  --chart-4: #4caf50; /* Neon green for chart colors */
+  --chart-5: #ff5722; /* Red for chart colors */
+  --radius: 0.25rem; /* Slightly rounded corners for pixel aesthetic */
+  --sidebar: #00bcd4; /* Teal for sidebar background */
+  --sidebar-foreground: #ffffff; /* White for sidebar text */
+  --sidebar-primary: #ffeb3b; /* Bright yellow for primary sidebar elements */
+  --sidebar-primary-foreground: #000000; /* Black for primary sidebar text */
+  --sidebar-accent: #e91e63; /* Magenta for sidebar accents */
+  --sidebar-accent-foreground: #ffffff; /* White for sidebar accent text */
+  --sidebar-border: #000000; /* Black for sidebar borders */
+  --sidebar-ring: #00bcd4; /* Teal for sidebar focus rings */
+  --font-pixel: "Press Start 2P", cursive; /* Pixelated Press Start 2P font */
+}
+
+.dark {
+  --background: #1a1a1a;
+  --foreground: #ffffff;
+  --card: #2a2a2a;
+  --card-foreground: #ffffff;
+  --popover: #00bcd4;
+  --popover-foreground: #ffffff;
+  --primary: #ffeb3b;
+  --primary-foreground: #000000;
+  --secondary: #e91e63;
+  --secondary-foreground: #ffffff;
+  --muted: #2a2a2a;
+  --muted-foreground: #ffffff;
+  --accent: #4caf50;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5722;
+  --destructive-foreground: #ffffff;
+  --border: #ffffff;
+  --input: #2a2a2a;
+  --ring: #00bcd4;
+  --chart-1: #00bcd4;
+  --chart-2: #ffeb3b;
+  --chart-3: #e91e63;
+  --chart-4: #4caf50;
+  --chart-5: #ff5722;
+  --sidebar: #00bcd4;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffeb3b;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #e91e63;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #ffffff;
+  --sidebar-ring: #00bcd4;
+  --font-pixel: "Press Start 2P", cursive; /* Pixelated Press Start 2P font */
+}
+
+@theme inline {
+  /* Updated font variables to use pixelated Press Start 2P font */
+  --font-pixel: var(--font-pixel);
+  --font-sans: var(--font-pixel);
+  --font-mono: var(--font-pixel);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Added pixelated background pattern */
+    background-image: radial-gradient(circle at 25% 25%, #00bcd4 2px, transparent 2px),
+      radial-gradient(circle at 75% 75%, #4caf50 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: 0 0, 25px 25px;
+  }
+}
+
+@layer utilities {
+  .font-pixel {
+    font-family: var(--font-pixel);
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0.05em;
+  }
+
+  .text-arcade-title {
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    text-shadow: 2px 2px 0px #00bcd4, 4px 4px 0px #000000;
+    color: #ffeb3b;
+    text-transform: uppercase;
+  }
+
+  .text-arcade-subtitle {
+    font-size: clamp(0.875rem, 2vw, 1.25rem);
+    text-shadow: 1px 1px 0px #4caf50, 2px 2px 0px #000000;
+    color: #ffffff;
+  }
+
+  .text-arcade-body {
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+    text-shadow: 1px 1px 0px #000000;
+    color: #000000;
+    line-height: 1.6;
+  }
+
+  .text-arcade-button {
+    font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+    text-shadow: 1px 1px 0px #000000;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .text-arcade-glow {
+    text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor, 2px 2px 0px #000000;
+  }
+}
+
+/* Added pixel-art style animations and effects */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes bounce-pixel {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes scroll-clouds {
+  0% {
+    transform: translateX(100vw);
+  }
+  100% {
+    transform: translateX(-100px);
+  }
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.pixel-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.pixel-bounce {
+  animation: bounce-pixel 0.6s ease-in-out;
+}
+
+.cloud-scroll {
+  animation: scroll-clouds 20s linear infinite;
+}
+
+.pixel-blink {
+  animation: blink 2s infinite;
+}
+
+.pixel-border {
+  border: 3px solid #000000;
+  box-shadow: inset -3px -3px 0px #666666, inset 3px 3px 0px #ffffff;
+}
+
+.arcade-button {
+  border: 4px solid #000000;
+  box-shadow: 0 6px 0 #000000, 0 8px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(0);
+  transition: all 0.1s;
+}
+
+.arcade-button:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #000000, 0 4px 4px rgba(0, 0, 0, 0.3);
+}
