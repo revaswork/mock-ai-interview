@@ -847,12 +847,15 @@
 # async def root():
 #     return {"message": "🎯 AI Mock Interview API is running!"}
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 import json
+import tempfile
+import os
+import subprocess
 
 from resume_parser import router as resume_router
 from main import start_interview
@@ -1086,3 +1089,213 @@ app.include_router(resume_router)
 @app.get("/")
 async def root():
     return {"message": "🎯 AI Mock Interview API is running!"}
+
+
+# ---------------------------------------------------------
+# WEBSOCKET ENDPOINT FOR STREAMING AUDIO
+# ---------------------------------------------------------
+@app.websocket("/ws/audio")
+async def websocket_audio_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time audio streaming.
+    - Receives binary audio chunks (webm/opus) from frontend
+    - Accumulates them to a temp file
+    - On 'end' signal, converts to WAV using ffmpeg
+    - Returns transcription via speech-to-text
+    """
+    await websocket.accept()
+    print("[WS] Audio WebSocket connection established")
+    
+    # Generate unique temp file for this connection
+    audio_id = uuid.uuid4().hex
+    temp_webm = os.path.join(tempfile.gettempdir(), f"audio_{audio_id}.webm")
+    temp_wav = os.path.join(tempfile.gettempdir(), f"audio_{audio_id}.wav")
+    
+    total_bytes = 0
+    
+    try:
+        with open(temp_webm, "wb") as f:
+            while True:
+                message = await websocket.receive()
+                
+                # Handle binary audio chunks
+                if 'bytes' in message and message['bytes']:
+                    chunk = message['bytes']
+                    f.write(chunk)
+                    total_bytes += len(chunk)
+                    print(f"[WS] Received audio chunk: {len(chunk)} bytes (total: {total_bytes})")
+                
+                # Handle control messages (JSON)
+                elif 'text' in message and message['text']:
+                    try:
+                        data = json.loads(message['text'])
+                        event = data.get("event")
+                        
+                        if event == "end":
+                            print(f"[WS] Recording ended. Total audio size: {total_bytes} bytes")
+                            break
+                        
+                    except json.JSONDecodeError:
+                        print(f"[WS] Invalid JSON control message: {message['text']}")
+                        continue
+        
+        # Validate audio size
+        if total_bytes == 0:
+            print("[WS] ERROR: No audio data received (empty recording)")
+            await websocket.send_json({
+                "status": "error",
+                "message": "No audio data received. Please check your microphone."
+            })
+            await websocket.close()
+            return
+        
+        # Convert webm to wav using ffmpeg
+        print(f"[WS] Converting {temp_webm} to WAV...")
+        try:
+            # Save a debug copy for inspection (temporary - can remove later)
+            debug_wav = os.path.join(tempfile.gettempdir(), f"debug_audio_{audio_id}.wav")
+            
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", temp_webm,
+                "-ar", "16000",  # 16kHz sample rate for speech recognition
+                "-ac", "1",       # mono
+                "-f", "wav",
+                "-acodec", "pcm_s16le",  # Explicit codec
+                temp_wav
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"[WS] FFmpeg error: {result.stderr}")
+                await websocket.send_json({
+                    "status": "error",
+                    "message": "Audio conversion failed. Is ffmpeg installed?"
+                })
+                await websocket.close()
+                return
+            
+            print(f"[WS] Conversion successful: {temp_wav}")
+            
+            # Copy for debugging
+            import shutil
+            shutil.copy(temp_wav, debug_wav)
+            print(f"[WS] DEBUG: Saved copy to {debug_wav} for inspection")
+            
+        except FileNotFoundError:
+            print("[WS] ERROR: ffmpeg not found in PATH")
+            await websocket.send_json({
+                "status": "error",
+                "message": "ffmpeg not installed. Please install ffmpeg."
+            })
+            await websocket.close()
+            return
+        
+        # Run speech-to-text on the WAV file using local Whisper (FREE!)
+        print("[WS] Running speech-to-text with local Whisper model...")
+        try:
+            # Check WAV file properties
+            import wave
+            with wave.open(temp_wav, 'rb') as wav_file:
+                frames = wav_file.getnframes()
+                rate = wav_file.getframerate()
+                duration = frames / float(rate)
+                print(f"[WS] WAV file: {duration:.2f}s, {rate}Hz, {frames} frames")
+            
+            # Check if WAV actually has audio data (not silent)
+            import numpy as np
+            import wave
+            with wave.open(temp_wav, 'rb') as wf:
+                audio_data = np.frombuffer(wf.readframes(wf.getnframes()), dtype=np.int16)
+                max_amplitude = np.max(np.abs(audio_data))
+                rms = np.sqrt(np.mean(audio_data.astype(float)**2))
+                print(f"[WS] Audio stats: max_amplitude={max_amplitude}, rms={rms:.2f}")
+                
+                if max_amplitude < 100:
+                    raise Exception(f"Audio is silent or too quiet (max amplitude: {max_amplitude}). Please check your microphone.")
+            
+            # Try local Whisper first (FREE, more accurate than Google)
+            try:
+                import whisper
+                
+                # Load model (first time will download, then cached)
+                # Options: tiny, base, small, medium, large
+                # 'base' is good balance of speed/accuracy
+                print("[WS] Loading Whisper model (base)...")
+                model = whisper.load_model("base")
+                
+                # Transcribe
+                print(f"[WS] Transcribing {temp_wav}...")
+                result = model.transcribe(temp_wav, language="en", fp16=False)  # Disable FP16 warning
+                transcript = result["text"].strip()
+                
+                print(f"[WS] Whisper transcription: '{transcript}'")
+                print(f"[WS] Detected language: {result.get('language', 'unknown')}")
+                
+                if not transcript:
+                    raise Exception("Empty transcription from Whisper - audio may be too quiet or contain no speech")
+                
+                # Send successful result back to client
+                await websocket.send_json({
+                    "status": "success",
+                    "transcript": transcript
+                })
+                
+            except ImportError:
+                print("[WS] Whisper not installed. Install with: pip install openai-whisper")
+                print("[WS] Falling back to Google Speech Recognition...")
+                
+                # Fallback to Google if Whisper not available
+                import speech_recognition as sr
+                recognizer = sr.Recognizer()
+                recognizer.energy_threshold = 300
+                recognizer.dynamic_energy_threshold = True
+                
+                with sr.AudioFile(temp_wav) as source:
+                    recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                    audio = recognizer.record(source)
+                    transcript = recognizer.recognize_google(audio)
+                
+                print(f"[WS] Google transcription: {transcript}")
+                await websocket.send_json({
+                    "status": "success",
+                    "transcript": transcript
+                })
+            
+        except Exception as e:
+            print(f"[WS] Speech-to-text error: {e}")
+            import traceback
+            traceback.print_exc()
+            await websocket.send_json({
+                "status": "error",
+                "message": f"Transcription failed: {str(e)}. Please try again or speak more clearly."
+            })
+        
+    except WebSocketDisconnect:
+        print("[WS] Client disconnected unexpectedly")
+    except Exception as e:
+        print(f"[WS] Unexpected error: {e}")
+        try:
+            await websocket.send_json({
+                "status": "error",
+                "message": f"Server error: {str(e)}"
+            })
+        except:
+            pass
+    finally:
+        # Cleanup temp files
+        for path in [temp_webm, temp_wav]:
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                    print(f"[WS] Cleaned up: {path}")
+                except Exception as e:
+                    print(f"[WS] Failed to cleanup {path}: {e}")
+        
+        try:
+            await websocket.close()
+        except:
+            pass
+        
+        print("[WS] WebSocket connection closed")
+

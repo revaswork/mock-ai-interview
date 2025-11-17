@@ -165,32 +165,27 @@ export const InterviewRoom = ({ onInterviewEnd }: { onInterviewEnd: () => void }
     }
   };
 
-  const handleVoiceAnswer = async (audioBlob: Blob) => {
+  const handleVoiceAnswer = async (_audioBlob: Blob) => {
+    // This function is now deprecated - WebSocket handles transcription
+    // Kept for compatibility, but the real work happens in handleTranscript
+    console.log('[InterviewRoom] Voice recording completed (handled by WebSocket)');
+  };
+
+  const handleTranscript = async (transcript: string) => {
     if (!sessionId || !resume) {
       alert('Session not initialized. Please refresh and try again.');
       return;
     }
 
-    // Validate audio blob has data
-    if (!audioBlob || audioBlob.size === 0) {
-      alert('No audio recorded. Please try recording again.');
-      console.error('Empty audio blob received');
-      return;
-    }
-
-    console.log('Audio blob size:', audioBlob.size, 'bytes');
-    console.log('Audio blob type:', audioBlob.type);
-
+    console.log('[InterviewRoom] Received transcript:', transcript);
+    
     setIsLoading(true);
     
     try {
-      // Convert blob to File
-      const audioFile = new File([audioBlob], 'answer.webm', { type: 'audio/webm' });
-
-      // Add current Q&A to history (we don't have transcription yet)
+      // Add current Q&A to history with actual transcript
       addToHistory({
         question: currentQuestion,
-        answer: '[Voice Answer - Processing...]',
+        answer: transcript,
         video_url: currentVideoUrl || undefined,
       });
 
@@ -200,7 +195,7 @@ export const InterviewRoom = ({ onInterviewEnd }: { onInterviewEnd: () => void }
         difficulty,
         resume_data: JSON.stringify(resume),
         current_question: currentQuestion,
-        audio_file: audioFile,
+        user_answer: transcript,  // Send the transcript as text answer
       });
 
       if (response.status === 'finished') {
@@ -210,15 +205,14 @@ export const InterviewRoom = ({ onInterviewEnd }: { onInterviewEnd: () => void }
       }
 
       if (response.status === 'error') {
-        throw new Error(response.message || 'Failed to process voice answer');
+        throw new Error(response.message || 'Failed to process answer');
       }
 
       setCurrentQuestion(response.next_question || '');
       setCurrentVideoUrl(response.video_url || null);
-      // No separate audio - D-ID video includes it
     } catch (err: any) {
-      console.error('Error sending voice answer:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to send voice answer. Please try again.';
+      console.error('Error sending transcript:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to process answer. Please try again.';
       alert(errorMsg);
     } finally {
       setIsLoading(false);
@@ -411,6 +405,7 @@ export const InterviewRoom = ({ onInterviewEnd }: { onInterviewEnd: () => void }
           <div className="flex justify-center">
             <VoiceRecorder
               onRecordingComplete={handleVoiceAnswer}
+              onTranscriptReceived={handleTranscript}
               isDisabled={isLoading}
             />
           </div>
